@@ -16,7 +16,7 @@
     {
       get
       {
-        List<SheetCellItem> cells = new List<SheetCellItem>();
+        List<SheetCellItem> cells = new();
         if (SheetRows != null && SheetRows.Any())
           foreach (var itm in SheetRows)
             cells.AddRange(itm.RowCells);
@@ -41,7 +41,7 @@
     public void AddCell(SheetCellItem cell, uint rindex, SheetRowFormats rowFormats)
     {
       if (rindex < 1)
-        throw new ArgumentOutOfRangeException("rindex", "rowindex must greater than zero");
+        throw new ArgumentOutOfRangeException(nameof(rindex), $"{nameof(rindex)} must greater than zero");
 
       var r = FindRow(rindex);
       if (r == null)
@@ -66,13 +66,13 @@
     }
     public List<T> ToList<T>() where T : new()
     {
-      List<T> result = new List<T>();
+      List<T> result = new();
 
-      if (SheetRows != null && SheetRows.Any())
+      if (SheetRows?.Any() == true)
       {
         foreach (SheetRowItem itm in SheetRows)
         {
-          T obj = new T();
+          T obj = new();
           var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
           for (var i = 0; i < itm.RowCells.Count; i++)
           {
@@ -125,7 +125,6 @@
           break;
         case "int64":
           {
-
             p.SetValue(obj, v.ToInt64(false), null);
           }
           break;
@@ -187,9 +186,9 @@
   public class SheetRowFormats : IEquatable<SheetRowFormats>
   {
     public uint RowHeight { get; set; }
-    public bool Equals(SheetRowFormats other)
+    public bool Equals(SheetRowFormats? other)
     {
-      if (ReferenceEquals(other, null))
+      if (other is null)
         return false;
       if (ReferenceEquals(this, other))
         return true;
@@ -232,9 +231,9 @@
     public bool WrapText { get; set; }
     public HorizontalAlignments HorizontalAlignment { get; set; }
     public VerticalAlignments VerticalAlignment { get; set; }
-    public bool Equals(SheetCellFormats other)
+    public bool Equals(SheetCellFormats? other)
     {
-      if (ReferenceEquals(other, null))
+      if (other is null)
         return false;
 
       if (ReferenceEquals(this, other))
@@ -246,6 +245,11 @@
     {
       return FontSize.GetHashCode() ^ FontName.GetHashCode() ^ FontBold.GetHashCode() ^ FontColor.GetHashCode() ^ FGColor.GetHashCode() ^ Borders[0].GetHashCode() ^ Borders[1].GetHashCode() ^ Borders[2].GetHashCode() ^ Borders[3].GetHashCode() ^ CellWidth.GetHashCode() ^ CellHeight.GetHashCode() ^ HorizontalAlignment.GetHashCode() ^ VerticalAlignment.GetHashCode() ^ WrapText.GetHashCode();
     }
+
+	public override bool Equals(object obj)
+	{
+	  return Equals(obj as SheetCellFormats);
+	}
   }
   public class CellTextPart
   {

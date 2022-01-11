@@ -115,7 +115,7 @@
       }
       else if (isOrdinal)
       {
-        parts[parts.Count - 1] += "th";
+        parts[^1] += "th";
       }
 
       var toWords = string.Join(" ", parts.ToArray());
@@ -132,7 +132,7 @@
     {
       if (isOrdinal)
       {
-        if (ExceptionNumbersToWords(number, out var exceptionString))
+		if(ordinalExceptions.TryGetValue(number, out var exceptionString))
         {
           return exceptionString;
         }
@@ -156,11 +156,6 @@
       }
 
       return toWords;
-    }
-
-    private bool ExceptionNumbersToWords(long number, out string words)
-    {
-      return ordinalExceptions.TryGetValue(number, out words);
     }
   }
 }
