@@ -2,116 +2,66 @@
 {
   public partial class ExcelWrapper : IExcelWrapper
   {
-	public ExcelWrapper()
+	/// <summary>
+	/// 生成多个sheet的Excel文件
+	/// </summary>
+	public async void WriteToXlsxFileAsync(WriteXlsxFileParams wxfPrms)
 	{
+	  using (var stream = WriteToMemoryStream(wxfPrms))
+	  using (FileStream fs = new(wxfPrms.FileName, FileMode.OpenOrCreate, FileAccess.Write))
+	  {
+		long v = stream.Seek(0, SeekOrigin.Begin);
+		await stream.CopyToAsync(fs).ConfigureAwait(false);
+		await fs.FlushAsync().ConfigureAwait(false);
+	  }
 	}
-
-	#region 写入到Excel相关
 
 	/// <summary>
 	/// 生成多个sheet的Excel文件
 	/// </summary>
-	/// <param name="dataItems"></param>
-	/// <param name="shNames">sheet name</param>
-	/// <param name="filename">生成的excel文件名(包含路径)</param>
-	/// <param name="doMerge">true: 存在合并单元格/false: 不存在合并单元格</param>
-	/// <param name="customFormat">true: 有自定义样式/false: 没有自定义样式</param>
-	//public void GenerateXlsxFile(List<BaseSheetData> exlsSheetData, string[] shNames, string filename, bool doMerge = false, bool customFormat = false)
-	//{
-	//  using SpreadsheetDocument spreadsheetDoc = SpreadsheetDocument.Create(filename, SpreadsheetDocumentType.Workbook);
-	//  WorkbookPart workbookPart = spreadsheetDoc.AddWorkbookPart();
-	//  workbookPart.Workbook = new Workbook();
-	//  Sheets sheets = spreadsheetDoc.WorkbookPart?.Workbook.AppendChild(new Sheets());
-	//  SharedStringTablePart tbpart = null;
+	public void WriteToXlsxFile(WriteXlsxFileParams wxfPrms)
+	{
+	  Task.Factory.StartNew((obj) =>
+	  {
+		WriteToXlsxFileAsync(obj as WriteXlsxFileParams);
+	  }, wxfPrms).ConfigureAwait(false);
+	}
 
-	//  var stylePart = workbookPart.AddNewPart<WorkbookStylesPart>();
-	//  List<SheetCellItem> allCells = new();
-	//  for (uint i = 0; i < exlsSheetData.Count; i++)
-	//  {
-	//	if (exlsSheetData[(int)i] is ExlsSheetData xlsxSheetData)
-	//	  allCells.AddRange(xlsxSheetData.AllCells);
-	//  }
-	//  if (allCells.Any())
-	//  {
-	//	if (customFormat)
-	//	  stylePart.Stylesheet = GenerateStylesheet(allCells);
-	//	else
-	//	  stylePart.Stylesheet = DefaultStylesheet();//GenerateDefaultStylesheet(allCells);
-	//	stylePart.Stylesheet.Save();
-	//  }
-
-	//  if (allCells.Any(x => x.DataType == DataTypes.SharedString))
-	//	tbpart = workbookPart.AddNewPart<SharedStringTablePart>();
-	//  for (uint i = 0; i < exlsSheetData.Count; i++)
-	//  {
-	//	WorksheetPart worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
-
-	//	if (exlsSheetData[(int)i] is ExlsSheetData xlsxSheetData)
-	//	{
-	//	  worksheetPart.Worksheet = new Worksheet();
-	//	  if (customFormat)
-	//	  {
-	//		var cols = GenerateColumns(xlsxSheetData.AllCells);
-	//		if (cols != null)
-	//		  worksheetPart.Worksheet.Append(cols);
-	//	  }
-	//	  else
-	//	  {
-	//		foreach (var c in xlsxSheetData.AllCells)
-	//		  c.FormatIndex = c.RowIndex.Equals(1) ? 1u : 2u;
-	//	  }
-
-	//	  worksheetPart.Worksheet.Append(CreateSheetData(xlsxSheetData.SheetRows, tbpart));
-	//	  if (doMerge)
-	//		DoMerge(xlsxSheetData.AllCells, worksheetPart.Worksheet);
-	//	}
-
-	//	UInt32Value id = UInt32Value.FromUInt32(i + 1);
-	//	Sheet sheet = new() { Id = spreadsheetDoc.WorkbookPart?.GetIdOfPart(worksheetPart), SheetId = id, Name = shNames[i][..Math.Min(shNames[i].Length, 30)] };
-
-	//	sheets?.AppendChild(sheet);
-	//  }
-	//  workbookPart.Workbook.Save();
-	//}
-
-	public MemoryStream GenerateXlsxFile(List<BaseSheetData> exlsSheetData, string[] shNames, bool doMerge = false, bool customFormat = false)
+	public MemoryStream WriteToMemoryStream(WriteXlsxFileParams wxfPrms)
 	{
 	  MemoryStream ms = new();
-	  using (SpreadsheetDocument spreadsheetDoc = SpreadsheetDocument.Create(ms, SpreadsheetDocumentType.Workbook))
+	  using (SpreadsheetDocument? spreadsheetDoc = SpreadsheetDocument.Create(ms, SpreadsheetDocumentType.Workbook))
 	  {
 		WorkbookPart workbookPart = spreadsheetDoc.AddWorkbookPart();
 		workbookPart.Workbook = new Workbook();
 		Sheets sheets = spreadsheetDoc.WorkbookPart?.Workbook.AppendChild(new Sheets());
-		SharedStringTablePart tbpart = null;
 
 		var stylePart = workbookPart.AddNewPart<WorkbookStylesPart>();
 		List<SheetCellItem> allCells = new();
-		for (uint i = 0; i < exlsSheetData.Count; i++)
+		for (uint i = 0; i < wxfPrms.LstSheetData.Count; i++)
 		{
-		  if (exlsSheetData[(int)i] is ExlsSheetData xlsxSheetData)
+		  if (wxfPrms.LstSheetData[(int)i] is ExlsSheetData xlsxSheetData)
 			allCells.AddRange(xlsxSheetData.AllCells);
 		}
 		if (allCells.Any())
 		{
-		  var ss = customFormat ? GenerateStylesheet(allCells) : DefaultStylesheet();
-		  if (ss == null)
-			ss = DefaultStylesheet();
-		  stylePart.Stylesheet = ss;
+		  stylePart.Stylesheet = (wxfPrms.CustFormat ? GenerateStylesheet(allCells) : DefaultStylesheet())
+					?? DefaultStylesheet();
 		  stylePart.Stylesheet.Save();
 		}
 
-		if (allCells.Any(x => x.DataType == DataTypes.SharedString))
-		  tbpart = workbookPart.AddNewPart<SharedStringTablePart>();
-		for (uint i = 0; i < exlsSheetData.Count; i++)
+		SharedStringTablePart tbpart = (allCells.Any(x => x.DataType == DataTypes.SharedString)) ?
+		  tbpart = workbookPart.AddNewPart<SharedStringTablePart>() : null;
+		for (uint i = 0; i < wxfPrms.LstSheetData.Count; i++)
 		{
 		  WorksheetPart worksheetPart = workbookPart.AddNewPart<WorksheetPart>();
 
-		  if (exlsSheetData[(int)i] is ExlsSheetData xlsxSheetData)
+		  if (wxfPrms.LstSheetData[(int)i] is ExlsSheetData xlsxSheetData)
 		  {
 			worksheetPart.Worksheet = new Worksheet();
-			if (customFormat)
+			if (wxfPrms.CustFormat)
 			{
-			  var cols = GenerateColumns(xlsxSheetData.AllCells);
+			  var cols = GenerateColumns(xlsxSheetData.FirstRow);
 			  if (cols != null)
 				worksheetPart.Worksheet.Append(cols);
 			}
@@ -122,70 +72,66 @@
 			}
 
 			worksheetPart.Worksheet.Append(CreateSheetData(xlsxSheetData.SheetRows, tbpart));
-			if (doMerge)
-			  DoMerge(xlsxSheetData.AllCells, worksheetPart.Worksheet);
+			if (wxfPrms.DoMerge)
+			  DoMerge(worksheetPart.Worksheet, xlsxSheetData.AllCells);
 		  }
 
-		  UInt32Value id = UInt32Value.FromUInt32(i + 1);
-		  Sheet sheet = new() { Id = spreadsheetDoc.WorkbookPart?.GetIdOfPart(worksheetPart), SheetId = id, Name = shNames[i][..Math.Min(shNames[i].Length, 30)] };
-
-		  sheets?.AppendChild(sheet);
+		  sheets?.AppendChild(new Sheet
+		  {
+			Id = spreadsheetDoc.WorkbookPart?.GetIdOfPart(worksheetPart),
+			SheetId = UInt32Value.FromUInt32(i + 1),
+			Name = wxfPrms.LstSheetName[(int)i][..Math.Min(wxfPrms.LstSheetName[(int)i].Length, 30)]
+		  });
 		}
 		workbookPart.Workbook.Save();
 	  }
 	  return ms;
 	}
 
-	private Cell CreateCell(string col, uint row, string text, DataTypes dataType, CellTextPart[] textParts, SharedStringTablePart shareStringPart, uint formatIndex = 0)
+	private Cell CreateCell(string col, uint row, string txt, DataTypes dType, CellTextPart[] txtPrts, SharedStringTablePart ssPart, uint fmtIndex = 0)
 	{
 	  Cell result = null;
-	  switch (dataType)
+	  switch (dType)
 	  {
 		case DataTypes.Number:
-		  {
-			result = new Cell { DataType = CellValues.Number, CellReference = col + row.ToString(), CellValue = new CellValue(text) };
-			if (formatIndex > 0)
-			  result.StyleIndex = formatIndex;
-		  }
+		  result = new() { DataType = CellValues.Number, CellReference = col + row.ToString(), CellValue = new CellValue(txt) };
 		  break;
 		case DataTypes.String:
-		  {
-			result = new() { DataType = CellValues.InlineString, CellReference = col + row.ToString() };
-			if (formatIndex > 0)
-			  result.StyleIndex = formatIndex;
+		  result = new() { DataType = CellValues.InlineString, CellReference = col + row.ToString() };
 
-			InlineString istring = new();
-			Text t = new() { Text = string.IsNullOrEmpty(text) ? string.Empty : text };
-			istring.AppendChild(t);
-			result.AppendChild(istring);
-		  }
+		  InlineString istring = new();
+		  istring.AppendChild(new Text { Text = txt ?? string.Empty });
+		  result.AppendChild(istring);
 		  break;
 		case DataTypes.SharedString:
-		  {
-			//return CreateSharedStringCell(col, row, formatIndex, textParts, shareStringPart);
-			result = new() { DataType = CellValues.SharedString, CellReference = col + row.ToString() };
-			if (formatIndex > 0)
-			  result.StyleIndex = formatIndex;
-
-			var index = GenerateSharedStringItem(textParts, shareStringPart);
-			result.CellValue = new CellValue(index.ToString());
-		  }
+		  var index = GenerateSharedStringItem(txtPrts, ssPart);
+		  result = new() { DataType = CellValues.SharedString, CellReference = col + row.ToString(), CellValue = new CellValue(index.ToString()) };
 		  break;
 	  }
+
+	  if (result != null && fmtIndex > 0)
+		result.StyleIndex = fmtIndex;
+
 	  return result;
 	}
 
+	/// <summary>
+	/// 因为Excel里面的列是字母表示的，所以要把数字列的索引转成Excel里面的列头
+	/// 如: 1->A,27->AA
+	/// </summary>
+	/// <param name="intCol"></param>
+	/// <returns></returns>
 	private string ColumnLetter(int intCol)
 	{
 	  int intFirstLetter = ((intCol - 1) / 676) + 64;
 	  int intSecondLetter = (((intCol - 1) % 676) / 26) + 64;
 	  int intThirdLetter = ((intCol - 1) % 26) + 65;
 
-	  char firstLetter = (intFirstLetter > 64) ? (char)intFirstLetter : ' ';
-	  char secondLetter = (intSecondLetter > 64) ? (char)intSecondLetter : ' ';
+	  char firstLetter = (intFirstLetter > 64) ? (char)intFirstLetter : char.MinValue;//' ';
+	  char secondLetter = (intSecondLetter > 64) ? (char)intSecondLetter : char.MinValue;//' ';
 	  char thirdLetter = (char)intThirdLetter;
 
-	  return string.Concat(firstLetter, secondLetter, thirdLetter).Trim();
+	  return string.Concat(firstLetter, secondLetter, thirdLetter)/*.Trim()*/;
 	}
 
 	/// <summary>
@@ -195,42 +141,39 @@
 	/// <returns></returns>
 	private SheetData CreateSheetData(IEnumerable<SheetRowItem> rowItems, SharedStringTablePart sharedStringPart)
 	{
-	  SheetData sheetData = null;
+	  SheetData sheetData = (rowItems?.Any() == true) ? new SheetData() : null;
 
-	  if (rowItems != null)
-	  {
-		sheetData = new SheetData();
-
-		if (rowItems.Any())
-		{
-		  foreach (var r in rowItems.OrderBy(x => x.RowIndex))
-		  {
-			sheetData.AppendChild(CreateSheetRow(r, r.RowIndex, sharedStringPart));
-		  }
-		}
-	  }
+	  if (sheetData != null)
+		foreach (var r in rowItems.OrderBy(x => x.RowIndex))
+		  sheetData.AppendChild(CreateSheetRow(r, sharedStringPart));
 
 	  return sheetData;
 	}
 	/// <summary>
 	/// 合并单元格
+	/// 注意: 合并单元格只需要设置开始单元格的MergeToRowIndex(合并至单元格的行),MergeToColIndex(合并至单元格的列)属性，
+	/// 不需要设置结束单元格, 所以MergeToRowIndex必须大于RowIndex、MergeToColIndex必须大于ColIndex
 	/// </summary>
 	/// <param name="cellItems"></param>
 	/// <param name="worksheet"></param>
-	private void DoMerge(IEnumerable<SheetCellItem> cellItems, Worksheet worksheet)
+	private void DoMerge(Worksheet worksheet, IEnumerable<SheetCellItem> cellItems)
 	{
-	  MergeCells mergeCells = new();
-	  if (cellItems.Any(x => x.MergeToColIndex > 0 || x.MergeToRowIndex > 0))
-		foreach (var itm in cellItems.Where(x => x.MergeToColIndex > 0 || x.MergeToRowIndex > 0))
+	  var cellsToMerge = cellItems.Where(x => x.MergeToColIndex > 0 || x.MergeToRowIndex > 0);
+	  if (cellsToMerge?.Any() == true)
+	  {
+		MergeCells mergeCells = new();
+		foreach (var itm in cellsToMerge)
 		{
-		  var mergeFrom = ColumnLetter((int)itm.ColIndex) + itm.RowIndex.ToString();
-		  var mergeTo = ColumnLetter((int)(itm.MergeToColIndex < itm.ColIndex ? itm.ColIndex : itm.MergeToColIndex)) + (itm.MergeToRowIndex < itm.RowIndex ? itm.RowIndex : itm.MergeToRowIndex).ToString();
+		  var mergeFrom = ColumnLetter((int)itm.ColIndex) //需要将列索引转成Excel的列头，如:1->A,27->A1
+						  + itm.RowIndex.ToString();
+		  var mergeTo = ColumnLetter((int)Math.Max(itm.ColIndex, itm.MergeToColIndex))  //需要将列索引转成Excel的列头，如:1->A,27->A1
+						  + Math.Max(itm.RowIndex, itm.MergeToRowIndex).ToString();
 		  MergeCell mergeCell = new() { Reference = new StringValue(mergeFrom + ":" + mergeTo) };
 		  mergeCells.Append(mergeCell);
 		}
 
-	  if (mergeCells.Any())
 		worksheet.InsertAfter(mergeCells, worksheet.Elements<SheetData>().First());
+	  }
 	}
 	private int GenerateSharedStringItem(CellTextPart[] textParts, SharedStringTablePart shareStringPart)
 	{
@@ -482,23 +425,27 @@
 
 	#endregion
 
-	private Columns GenerateColumns(IEnumerable<SheetCellItem> sheetCells)
+	/// <summary>
+	/// 有设置列宽的需要创建列，一般设置在第一行
+	/// </summary>
+	/// <param name="firstRow"></param>
+	/// <returns></returns>
+	private Columns GenerateColumns(SheetRowItem firstRow)
 	{
 	  Columns result = null;
-	  if (sheetCells?.Any(x => x.CustWidth > 0) == true)
+	  if (firstRow?.RowCells?.Any(x => x.CustWidth > 0) == true)
 	  {
 		result = new Columns();
-		foreach (var itm in sheetCells.Where(x => x.CustWidth > 0).OrderBy(x => x.ColIndex))
+		foreach (var itm in firstRow.RowCells.Where(x => x.CustWidth > 0).OrderBy(x => x.ColIndex))
 		  result.Append(new Column { CustomWidth = true, Min = itm.ColIndex, Max = itm.ColIndex, Width = itm.CustWidth });
 	  }
 	  return result;
 	}
-	protected Row CreateSheetRow(SheetRowItem item, uint rowIndex, SharedStringTablePart shareStringPart)
+	protected Row CreateSheetRow(SheetRowItem item, SharedStringTablePart shareStringPart)
 	{
-	  Row result = null;
-	  if (item != null && item.RowCells != null && item.RowCells.Any())
+	  Row result = new Row { RowIndex = item.RowIndex };
+	  if (item.RowCells?.Any() == true)
 	  {
-		result = new Row { RowIndex = rowIndex };
 		if (item.RowHeight > 0)
 		{
 		  result.CustomHeight = BooleanValue.FromBoolean(true);
@@ -514,143 +461,5 @@
 
 	  return result;
 	}
-	#endregion
-
-	#region 读取Excel相关
-
-	public ExlsSheetData ReadSpreadSheetDoc(string filename, int sheetIndex, int startRowIndex)
-	{
-	  //if (Path.GetExtension(filename).Equals(".xls", StringComparison.OrdinalIgnoreCase))
-	  //  filename = ConvertToXlsx(filename);
-
-	  using var stream = File.Open(filename, FileMode.Open);
-	  return ReadSpreadSheetDoc(stream, sheetIndex, startRowIndex);
-	}
-
-	public ExlsSheetData ReadSpreadSheetDoc(Stream stream, int sheetIndex, int startRowIndex)
-	{
-	  ExlsSheetData result = new();
-	  using (SpreadsheetDocument spreadsheetDocument = SpreadsheetDocument.Open(stream, false))
-	  {
-		WorkbookPart workbookPart = spreadsheetDocument.WorkbookPart;
-		var theSheet = workbookPart?.Workbook.Sheets.ElementAt(sheetIndex) as Sheet;
-		var workSheetPart = workbookPart?.GetPartById(theSheet?.Id) as WorksheetPart;
-		uint rowIndex = 1;
-		var lstDataRows = new List<SheetRowItem>();
-		var rows = workSheetPart?.Worksheet.Descendants<Row>();
-		if (rows.Count() >= startRowIndex)
-		{
-		  foreach (Row r in rows.Skip(startRowIndex - 1))
-		  {
-			var lstDataItems = new List<SheetCellItem>();
-			uint colIndex = 0;
-			foreach (Cell theCell in r.Elements<Cell>())
-			{
-			  string cellValue;
-			  if (theCell.InnerText.Length > 0)
-				cellValue = GetCellValue(workbookPart, theCell);
-			  else
-				cellValue = string.Empty;
-			  var realIndex = CellReferenceToIndex(theCell);
-			  if (colIndex < realIndex)
-			  {
-				while (colIndex < realIndex)
-				  lstDataItems.Add(new SheetCellItem { ColIndex = ++colIndex, Data = string.Empty, DataType = DataTypes.String });
-			  }//empty cell was skpipped
-
-			  lstDataItems.Add(new SheetCellItem { ColIndex = ++colIndex, Data = cellValue, DataType = DataTypes.String });
-			}
-
-			lstDataRows.Add(new SheetRowItem(lstDataItems, rowIndex));
-			rowIndex++;
-		  }
-		}
-		result.SheetRows = lstDataRows;
-	  }
-
-	  return result;
-	}
-
-	private string GetCellValue(WorkbookPart workbookPart, Cell theCell)
-	{
-	  string cellValue = theCell.InnerText;
-	  if (theCell.DataType != null)
-		switch (theCell.DataType.Value)
-		{
-		  case CellValues.SharedString:
-			var stringTable = workbookPart.GetPartsOfType<SharedStringTablePart>().FirstOrDefault();
-			if (stringTable != null)
-			  cellValue = stringTable.SharedStringTable.ElementAt(int.Parse(cellValue)).InnerText;
-			break;
-		  case CellValues.Boolean:
-			cellValue = cellValue switch
-			{
-			  "0" => "FALSE",
-			  _ => "TRUE",
-			};
-			break;
-		}
-	  else if (theCell.CellFormula != null)
-		cellValue = theCell.CellValue?.InnerText;
-
-	  return cellValue;
-	}
-
-	private int CellReferenceToIndex(Cell cell)
-	{
-	  int index = 0;
-	  string reference = cell.CellReference?.ToString()?.ToUpper();
-
-	  if (!string.IsNullOrWhiteSpace(reference))
-		foreach (char ch in reference)
-		{
-		  if (char.IsLetter(ch))
-		  {
-			int value = ch - 'A';
-			index = (index == 0) ? value : ((index + 1) * 26) + value;
-		  }
-		  else
-			return index;
-		}
-
-	  return index;
-	}
-
-	//	/// <summary>
-	//	/// xls转xlsx 
-	//	/// </summary>
-	//	/// <param name="filename"></param>
-	//	/// <returns></returns>
-	//	private string ConvertToXlsx(string filename)
-	//	{
-	//	  var xlApp = new Microsoft.Office.Interop.Excel.Application();
-	//	  Microsoft.Office.Interop.Excel.Workbook xlWorkBook = null;
-	//	  try
-	//	  {
-	//		xlWorkBook = xlApp.Workbooks.Open(filename, 0, true, 5, "", "", true, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "\t", false, false, 0, true, 1, 0);
-	//		xlApp.DisplayAlerts = false;
-	//		var tempPath = Path.GetTempPath();
-
-	//		filename = Path.Combine(tempPath, Path.GetFileNameWithoutExtension(filename) + Guid.NewGuid().ToString() + ".xlsx");
-	//		xlWorkBook.SaveAs(filename, Microsoft.Office.Interop.Excel.XlFileFormat.xlOpenXMLWorkbook, Missing.Value,
-	//	Missing.Value, false, false, Microsoft.Office.Interop.Excel.XlSaveAsAccessMode.xlNoChange, Microsoft.Office.Interop.Excel.XlSaveConflictResolution.xlLocalSessionChanges, true, Missing.Value, Missing.Value, Missing.Value);
-	//	  }
-	//	  catch
-	//	  {
-	//		throw;
-	//	  }
-	//	  finally
-	//	  {
-	//		xlWorkBook?.Close();
-	//		xlApp.Quit();
-	//#pragma warning disable CA1416 // 验证平台兼容性
-	//		_ = Marshal.ReleaseComObject(xlWorkBook);
-	//		_ = Marshal.ReleaseComObject(xlApp);
-	//#pragma warning restore CA1416 // 验证平台兼容性
-	//	  }
-
-	//	  return filename;
-	//	}
-	#endregion
   }
 }
