@@ -1,274 +1,219 @@
-﻿namespace CommonLibraryCore
+﻿namespace CommonLibraryCore;
+public class ExlsSheetData
 {
-  public abstract class BaseSheetData
+  public ExlsSheetData() { }
+  public ExlsSheetData(List<SheetRowItem> rowItems, StyleItem headStyle, StyleItem dataStyle)
   {
+	SheetRows = rowItems;
+	HeadStyle = headStyle;
+	DataStyle = dataStyle;
   }
-
-  public class ExlsSheetData : BaseSheetData
-  {
-    public ExlsSheetData()
-    { }
-    public ExlsSheetData(List<SheetRowItem> rowItems)
-    {
-      SheetRows = rowItems;
-    }
-    public List<SheetCellItem> AllCells
-    {
-      get
-      {
-        List<SheetCellItem> cells = new();
-        if (SheetRows != null && SheetRows.Any())
-          foreach (var itm in SheetRows)
-            cells.AddRange(itm.RowCells);
-        return cells;
-      }
-    }
-    public List<SheetRowItem> SheetRows { get; set; }
-    public void AddRow(SheetRowItem row)
-    {
-      if (SheetRows == null)
-        SheetRows = new List<SheetRowItem>();
-
-      if (SheetRows.Any(x => x.RowIndex == row.RowIndex))
-        throw new Exception("rowindex exist");
-
-      SheetRows.Add(row);
-    }
-    public void AddCell(SheetCellItem cell, uint rindex)
-    {
-      AddCell(cell, rindex, null);
-    }
-    public void AddCell(SheetCellItem cell, uint rindex, SheetRowFormats rowFormats)
-    {
-      if (rindex < 1)
-        throw new ArgumentOutOfRangeException(nameof(rindex), $"{nameof(rindex)} must greater than zero");
-
-      var r = FindRow(rindex);
-      if (r == null)
-      {
-        r = new SheetRowItem(new List<SheetCellItem>(), rindex);
-        if (rowFormats != null)
-          r.RowHeight = rowFormats.RowHeight;
-        AddRow(r);
-      }
-      cell.RowIndex = rindex;
-      r.RowCells.Add(cell);
-    }
-
-    protected SheetRowItem FindRow(uint rindex)
-    {
-      SheetRowItem result = null;
-
-      if (SheetRows != null && SheetRows.Any(x => x.RowIndex == rindex))
-        result = SheetRows.First(x => x.RowIndex == rindex);
-
-      return result;
-    }
-    public List<T> ToList<T>() where T : new()
-    {
-      List<T> result = new();
-
-      if (SheetRows?.Any() == true)
-      {
-        foreach (SheetRowItem itm in SheetRows)
-        {
-          T obj = new();
-          var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
-          for (var i = 0; i < itm.RowCells.Count; i++)
-          {
-            var property = FindProperty(properties, i + 1);
-            if (property != null)
-              SetPropertyValue(property, obj, itm.RowCells[i].Data);
-          }
-          result.Add(obj);
-        }
-      }
-
-      return result;
-    }
-    private PropertyInfo FindProperty(PropertyInfo[] properties, int order)
-    {
-      foreach (var itm in properties)
-      {
-        var attrs = itm.GetCustomAttributes(false);
-        if (attrs != null && attrs.Any() && attrs.Any(x => x.GetType() == typeof(ColAttribute)))
-        {
-          var rowDataAttr = attrs.FirstOrDefault(x => x.GetType() == typeof(ColAttribute)) as ColAttribute;
-          if (rowDataAttr?.IsImport == true && rowDataAttr.OrderInImporter == order)
-            return itm;
-        }
-        //else
-        //    throw new Exception("ColAttribute not found");
-      }
-
-      return null;
-    }
-
-    private void SetPropertyValue<T>(PropertyInfo p, T obj, string v)
-    {
-      switch (p.PropertyType.Name.ToLower())
-      {
-        case "string":
-          {
-            p.SetValue(obj, v, null);
-          }
-          break;
-        case "datetime":
-          {
-            p.SetValue(obj, v.ToDateTime(false), null);
-          }
-          break;
-        case "int32":
-          {
-            p.SetValue(obj, v.ToInt32(false), null);
-          }
-          break;
-        case "int64":
-          {
-            p.SetValue(obj, v.ToInt64(false), null);
-          }
-          break;
-        case "boolean":
-          {
-            p.SetValue(obj, v.ToBoolean(false), null);
-          }
-          break;
-        case "double":
-          {
-            p.SetValue(obj, v.ToDouble(false), null);
-          }
-          break;
-        case "decimal":
-          {
-            p.SetValue(obj, v.ToDecimal(false), null);
-          }
-          break;
-        case "float":
-          {
-            p.SetValue(obj, v.ToFloat(false), null);
-          }
-          break;
-      }
-    }
-
-  }
-
-  public class SheetRowItem
-  {
-    public SheetRowItem(List<SheetCellItem> rowCells, uint rindex)
-    {
-      RowCells = rowCells;
-      RowIndex = rindex;
-    }
-    public uint RowIndex { get; set; }
-    public uint RowHeight { get; set; }
-    public List<SheetCellItem> RowCells { get; set; }
-  }
-
+  public List<SheetRowItem> SheetRows { get; set; }
   /// <summary>
-  /// 定义Excel单元格相关属性
+  /// 表头统一样式
   /// </summary>
-  public class SheetCellItem
+  public StyleItem HeadStyle { get; set; }
+  /// <summary>
+  /// 数据的统一样式
+  /// </summary>
+  public StyleItem DataStyle { get; set; }
+  public void AddRow(SheetRowItem row)
   {
-    public uint RowIndex { get; set; }
-    public uint ColIndex { get; set; }
-    public uint MergeToRowIndex { get; set; }
-    public uint MergeToColIndex { get; set; }
-    public string Data { get; set; }
-    public DataTypes DataType { get; set; }
-    public SheetCellFormats CellFormats { get; set; }
-    public uint FormatIndex { get; set; }
-    public uint CustWidth { get; set; }
-    public uint CustHeight { get; set; }
-    public CellTextPart[] Texts { get; set; }
+	if (SheetRows == null)
+	  SheetRows = new List<SheetRowItem>();
+
+	if (SheetRows.Any(x => x.RowIndex == row.RowIndex))
+	  throw new Exception("rowindex exist");
+
+	SheetRows.Add(row);
   }
+  public SheetRowItem FirstRow => SheetRows?.OrderBy(x => x.RowIndex)
+										 .FirstOrDefault();
 
-  public class SheetRowFormats : IEquatable<SheetRowFormats>
+  public List<SheetCellItem> AllCells => SheetRows?.SelectMany(x => x.RowCells).ToList();
+  /// <summary>
+  /// 转成List数据
+  /// </summary>
+  /// <typeparam name="T"></typeparam>
+  public List<T> ToList<T>() where T : new()
   {
-    public uint RowHeight { get; set; }
-    public bool Equals(SheetRowFormats? other)
-    {
-      if (other is null)
-        return false;
-      if (ReferenceEquals(this, other))
-        return true;
+	List<T> result = new();
 
-      return RowHeight.Equals(other.RowHeight);
-    }
-    public override int GetHashCode()
-    {
-      return RowHeight.GetHashCode();
-    }
-
-    public override bool Equals(object obj)
-    {
-      return Equals(obj as SheetRowFormats);
-    }
-  }
-  public class SheetCellFormats : IEquatable<SheetCellFormats>
-  {
-    public SheetCellFormats()
-    {
-      FontSize = 0;
-      FontBold = false;
-      FontColor = string.Empty;
-      FGColor = string.Empty;
-      FontName = string.Empty;
-      CellWidth = 0;
-      CellHeight = 0;
-      HorizontalAlignment = HorizontalAlignments.Default;
-      VerticalAlignment = VerticalAlignments.Default;
-      Borders = new bool[4];
-    }
-    public double FontSize { get; set; }
-    public bool FontBold { get; set; }
-    public string FontName { get; set; }
-    public string FontColor { get; set; }
-    public string FGColor { get; set; }
-    public bool[] Borders { get; set; }
-    public int CellWidth { get; set; }
-    public int CellHeight { get; set; }
-    public bool WrapText { get; set; }
-    public HorizontalAlignments HorizontalAlignment { get; set; }
-    public VerticalAlignments VerticalAlignment { get; set; }
-    public bool Equals(SheetCellFormats? other)
-    {
-      if (other is null)
-        return false;
-
-      if (ReferenceEquals(this, other))
-        return true;
-
-      return FontSize.Equals(other.FontSize) && FontName.Equals(other.FontName) && FontBold.Equals(other.FontBold) && FontColor.Equals(other.FontColor) && FGColor.Equals(other.FGColor) && Borders[0].Equals(other.Borders[0]) && Borders[1].Equals(other.Borders[1]) && Borders[2].Equals(other.Borders[2]) && Borders[3].Equals(other.Borders[3]) && CellWidth.Equals(other.CellWidth) && CellHeight.Equals(other.CellHeight) && HorizontalAlignment == other.HorizontalAlignment && VerticalAlignment == other.VerticalAlignment && WrapText == other.WrapText;
-    }
-    public override int GetHashCode()
-    {
-      return FontSize.GetHashCode() ^ FontName.GetHashCode() ^ FontBold.GetHashCode() ^ FontColor.GetHashCode() ^ FGColor.GetHashCode() ^ Borders[0].GetHashCode() ^ Borders[1].GetHashCode() ^ Borders[2].GetHashCode() ^ Borders[3].GetHashCode() ^ CellWidth.GetHashCode() ^ CellHeight.GetHashCode() ^ HorizontalAlignment.GetHashCode() ^ VerticalAlignment.GetHashCode() ^ WrapText.GetHashCode();
-    }
-
-	public override bool Equals(object obj)
+	if (SheetRows?.Any() == true)
 	{
-	  return Equals(obj as SheetCellFormats);
+	  var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.SetProperty);
+	  List<(uint order, PropertyInfo property)> lstOrderAndProperty = new();
+	  foreach (var itm in properties)
+	  {
+		var attr = itm.GetCustomAttribute<ColAttribute>(false);
+		if (attr != null && !attr.NotImport)
+		  lstOrderAndProperty.Add((attr.OrderInImporter, itm));
+	  }
+	  foreach (SheetRowItem itm in SheetRows)
+	  {
+		T obj = new();
+		for (var i = 0; i < itm.RowCells.Count; i++)
+		{
+		  if (lstOrderAndProperty.Any(x => x.order.Equals(itm.RowCells[i].ColIndex) && x.property != null))
+		  {
+			PropertyInfo property = lstOrderAndProperty.FirstOrDefault(x => x.order.Equals(itm.RowCells[i].ColIndex)).property; //FindProperty(properties, itm.RowCells[i].ColIndex);
+			SetPropertyValue(property, obj, itm.RowCells[i].Data);
+		  }
+		}
+		result.Add(obj);
+	  }
+	}
+
+	return result;
+  }
+
+  public ExlsSheetData ToSheetdata<T>(IEnumerable<T> data, bool addHeadRow)
+  {
+	if (data?.Any() == true)
+	{
+	  uint rowIndex = 1;
+	  uint colIndex = 1;
+	  var properties = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.GetProperty);
+	  //下面提取数据时根据这里的DisplayOrder顺序转换成column,根据PropertyName提取T中的属性值
+	  List<(uint DisplayOrder, string ColName, string PropertyName, uint ColWidth)> rowDataAtts = new();
+	  SheetRows = new List<SheetRowItem>();
+
+	  if (addHeadRow)
+	  {
+		var headRow = new SheetRowItem(new List<SheetCellItem>(), rowIndex++);
+
+		foreach (MemberInfo itm in properties)
+		{//存在有的属性定义了ColAttribute,有的没定义的情况
+		  ColAttribute colAtt = itm.GetCustomAttribute<ColAttribute>();
+		  if (colAtt != null)
+		  {
+			if (!colAtt.NotExport)
+			{
+			  rowDataAtts.Add((colAtt.DisplayOrder, string.IsNullOrWhiteSpace(colAtt.ColName) ? itm.Name : colAtt.ColName, itm.Name, colAtt.ColWidth));
+			  colIndex = colAtt.DisplayOrder;
+			}
+		  }
+		  else
+		  {
+			if (rowDataAtts.Any())
+			  colIndex = rowDataAtts.OrderBy(x => x.DisplayOrder).Last().DisplayOrder + 1;
+			rowDataAtts.Add((colIndex, itm.Name, itm.Name, uint.MinValue));
+		  }
+		}
+
+		colIndex = 1;
+		foreach ((_, string ColName, _, uint ColWidth) in rowDataAtts.OrderBy(x => x.DisplayOrder))
+		  headRow.RowCells.Add(new() { Data = ColName, ColIndex = colIndex++, DataType = DataTypes.String, CustWidth = ColWidth });
+
+		SheetRows.Add(headRow); //the head row added
+	  }//添加第一行为标题行
+	  else
+	  {
+		foreach (MemberInfo itm in properties)
+		{
+		  if (rowDataAtts.Any())
+			colIndex = rowDataAtts.OrderBy(x => x.DisplayOrder).Last().DisplayOrder + 1;
+		  rowDataAtts.Add((colIndex, itm.Name, itm.Name, uint.MinValue));
+		}
+	  }
+
+	  foreach (T itm in data)
+	  {
+		colIndex = 1;
+		var dataRow = new SheetRowItem(new List<SheetCellItem>(), rowIndex);
+		foreach ((_, _, string PropertyName, _) in rowDataAtts.OrderBy(x => x.DisplayOrder))
+		{
+		  var theProperty = properties.FirstOrDefault(x => x.Name.Equals(PropertyName));
+		  if (theProperty != null)
+		  {
+			object v = theProperty.GetValue(itm);
+			var cellItm = new SheetCellItem
+			{ ColIndex = colIndex, RowIndex = rowIndex, Data = v?.ToString(true, string.Empty) ?? string.Empty, DataType = v?.IsNumeric() == true ? DataTypes.Number : DataTypes.String };
+			dataRow.RowCells.Add(cellItm);
+		  }
+		  colIndex++;
+		}
+		rowIndex++;
+
+		SheetRows.Add(dataRow);	//add a data row
+	  }
+	}
+	return this;
+  }
+
+  public bool IsEmpty => AllCells?.Any() != true;
+  public bool IsSharedStringExist => AllCells?.Any(x => x.DataType == DataTypes.SharedString) == true;
+  private void SetPropertyValue<T>(PropertyInfo p, T obj, string v)
+  {
+	switch (p.PropertyType.Name.ToLower())
+	{
+	  case "string":
+		p.SetValue(obj, v, null);
+		break;
+	  case "datetime":
+		p.SetValue(obj, v.ToDateTime(false), null);
+		break;
+	  case "int32":
+		p.SetValue(obj, v.ToInt32(false), null);
+		break;
+	  case "int64":
+		p.SetValue(obj, v.ToInt64(false), null);
+		break;
+	  case "boolean":
+		p.SetValue(obj, v.ToBoolean(false), null);
+		break;
+	  case "double":
+		p.SetValue(obj, v.ToDouble(false), null);
+		break;
+	  case "decimal":
+		p.SetValue(obj, v.ToDecimal(false), null);
+		break;
+	  case "float":
+		p.SetValue(obj, v.ToFloat(false), null);
+		break;
 	}
   }
-  public class CellTextPart
+}
+
+public class SheetRowItem
+{
+  public SheetRowItem(List<SheetCellItem> rowCells, uint rindex)
   {
-    public string Text { get; set; }
-    public DataTypes TheDataType { get; set; }
-    public SheetCellFormats PartFormat { get; set; }
+	RowCells = rowCells;
+	RowIndex = rindex;
   }
-  public enum HorizontalAlignments
-  {
-    Default,
-    Left,
-    Center,
-    Right
-  }
-  public enum VerticalAlignments
-  {
-    Default,
-    Top,
-    Middle,
-    Bottom
-  }
+  /// <summary>
+  /// 行索引，以1开始
+  /// </summary>
+  public uint RowIndex { get; set; }
+  /// <summary>
+  /// 行高只需要设置在行上，不需要设置每个单元格
+  /// </summary>
+  public uint RowHeight { get; set; }
+  public List<SheetCellItem> RowCells { get; set; }
+}
+
+/// <summary>
+/// 定义Excel单元格相关属性
+/// </summary>
+public class SheetCellItem
+{
+  public uint RowIndex { get; set; }
+  public uint ColIndex { get; set; }
+  public uint MergeToRowIndex { get; set; }
+  public uint MergeToColIndex { get; set; }
+  public string Data { get; set; }
+  public DataTypes DataType { get; set; }
+  public StyleItem CellStyle { get; set; }
+  public uint StyleIndex { get; set; }
+  public uint CustWidth { get; set; }
+  public uint CustHeight { get; set; }
+  public CellTextPart[] Texts { get; set; }
+}
+
+public class CellTextPart
+{
+  public string Text { get; set; }
+  public DataTypes TheDataType { get; set; }
+  public FontStyle PartFontStyle { get; set; }
 }
