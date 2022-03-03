@@ -83,4 +83,3 @@ public sealed class ReadXlsxFileParams
   /// </summary>
   public int StartRowIndex { get; set; }
 }
-}
