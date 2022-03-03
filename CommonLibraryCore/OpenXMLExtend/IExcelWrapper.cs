@@ -1,11 +1,9 @@
-﻿namespace CommonLibraryCore
+﻿namespace CommonLibraryCore;
+public interface IExcelWrapper
 {
-  public interface IExcelWrapper
-  {
-	void WriteToXlsxFileAsync(WriteXlsxFileParams wxfPrms);
-	void WriteToXlsxFile(WriteXlsxFileParams wxfPrms);
-	MemoryStream WriteToMemoryStream(WriteXlsxFileParams wxfPrms);
-	ExlsSheetData ReadExlsSheetDataFromXlsxFile(ReadXlsxFileParams rxfPrms);
-	ExlsSheetData ReadExlsSheetDataFromStream(ReadXlsxFileParams rxfPrms);
-  }
+  Task WriteToXlsxFileAsync(WriteXlsxFileParams wxfPrms);
+  void WriteToXlsxFile(WriteXlsxFileParams wxfPrms);
+  MemoryStream WriteToMemoryStream(WriteXlsxFileParams wxfPrms);
+  ExlsSheetData ReadExlsSheetDataFromXlsxFile(ReadXlsxFileParams rxfPrms);
+  ExlsSheetData ReadExlsSheetDataFromStream(ReadXlsxFileParams rxfPrms);
 }

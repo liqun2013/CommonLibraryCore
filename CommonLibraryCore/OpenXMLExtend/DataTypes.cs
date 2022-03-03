@@ -1,9 +1,7 @@
-﻿namespace CommonLibraryCore
+﻿namespace CommonLibraryCore;
+public enum DataTypes
 {
-	public enum DataTypes
-	{
-		Number = 1,
-		String = 2,
-		SharedString = 3
-	}
+  Number = 1,
+  String = 2,
+  SharedString = 3
 }
